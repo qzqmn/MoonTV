@@ -171,9 +171,6 @@ importers:
       typescript:
         specifier: ^4.9.5
         version: 4.9.5
-      wrangler:
-        specifier: ^3.0.0
-        version: 3.114.17
 
 packages:
 
