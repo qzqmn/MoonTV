@@ -10,7 +10,7 @@ import { IStorage } from '@/lib/types';
 export const runtime = 'edge';
 
 // 支持的操作类型
-type Action = 'add' | 'disable' | 'enable' | 'delete' | 'sort';
+type Action = 'add' | 'disable' | 'enable' | 'delete' | 'sort' | 'test';
 
 interface BaseBody {
   action?: Action;
@@ -38,7 +38,14 @@ export async function POST(request: NextRequest) {
     const username = authInfo.username;
 
     // 基础校验
-    const ACTIONS: Action[] = ['add', 'disable', 'enable', 'delete', 'sort'];
+    const ACTIONS: Action[] = [
+      'add',
+      'disable',
+      'enable',
+      'delete',
+      'sort',
+      'test',
+    ];
     if (!username || !action || !ACTIONS.includes(action)) {
       return NextResponse.json({ error: '参数格式错误' }, { status: 400 });
     }
@@ -138,6 +145,38 @@ export async function POST(request: NextRequest) {
         });
         adminConfig.SourceConfig = newList;
         break;
+      }
+      case 'test': {
+        const { api } = body as { api?: string };
+        if (!api) {
+          return NextResponse.json({ error: '缺少 API 地址' }, { status: 400 });
+        }
+        try {
+          const testUrl = `${api}?ac=detail&pg=1`;
+          const resp = await fetch(testUrl, {
+            method: 'GET',
+            headers: { 'User-Agent': 'Mozilla/5.0' },
+            signal: AbortSignal.timeout(10000),
+          });
+          if (!resp.ok) {
+            return NextResponse.json(
+              { ok: false, error: `HTTP ${resp.status}` },
+              { status: 200 }
+            );
+          }
+          const data = await resp.json();
+          const total = data?.total || 0;
+          const count = data?.list?.length || 0;
+          return NextResponse.json(
+            { ok: true, total, count },
+            { headers: { 'Cache-Control': 'no-store' } }
+          );
+        } catch (err) {
+          return NextResponse.json(
+            { ok: false, error: (err as Error).message },
+            { status: 200 }
+          );
+        }
       }
       default:
         return NextResponse.json({ error: '未知操作' }, { status: 400 });

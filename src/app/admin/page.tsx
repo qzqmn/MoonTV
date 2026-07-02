@@ -643,6 +643,12 @@ const VideoSourceConfig = ({
   const [sources, setSources] = useState<DataSource[]>([]);
   const [showAddForm, setShowAddForm] = useState(false);
   const [orderChanged, setOrderChanged] = useState(false);
+  const [testResults, setTestResults] = useState<
+    Record<
+      string,
+      { loading: boolean; ok?: boolean; total?: number; error?: string }
+    >
+  >({});
   const [newSource, setNewSource] = useState<DataSource>({
     name: '',
     key: '',
@@ -711,6 +717,32 @@ const VideoSourceConfig = ({
     callSourceApi({ action: 'delete', key }).catch(() => {
       console.error('操作失败', 'delete', key);
     });
+  };
+
+  const handleTestSource = async (key: string, api: string) => {
+    setTestResults((prev) => ({ ...prev, [key]: { loading: true } }));
+    try {
+      const resp = await fetch('/api/admin/source', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'test', api }),
+      });
+      const data = await resp.json();
+      setTestResults((prev) => ({
+        ...prev,
+        [key]: {
+          loading: false,
+          ok: data.ok,
+          total: data.total,
+          error: data.error,
+        },
+      }));
+    } catch (err) {
+      setTestResults((prev) => ({
+        ...prev,
+        [key]: { loading: false, ok: false, error: (err as Error).message },
+      }));
+    }
   };
 
   const handleAddSource = () => {
@@ -812,6 +844,26 @@ const VideoSourceConfig = ({
           </span>
         </td>
         <td className='px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2'>
+          <button
+            onClick={() => handleTestSource(source.key, source.api)}
+            disabled={testResults[source.key]?.loading}
+            className='inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-900/60 transition-colors disabled:opacity-50'
+          >
+            {testResults[source.key]?.loading ? '测试中...' : '测试'}
+          </button>
+          {testResults[source.key] && !testResults[source.key].loading && (
+            <span
+              className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                testResults[source.key].ok
+                  ? 'bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-300'
+                  : 'bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-300'
+              }`}
+            >
+              {testResults[source.key].ok
+                ? `${(testResults[source.key].total || 0).toLocaleString()} 部`
+                : testResults[source.key].error || '失败'}
+            </span>
+          )}
           <button
             onClick={() => handleToggleEnable(source.key)}
             className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium ${
